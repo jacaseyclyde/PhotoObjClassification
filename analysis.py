@@ -26,12 +26,14 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as QDA
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.neural_network import MLPClassifier
 
 
 CLASS_DICT = {}
 SUBCLASS_DICT = {}
 
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 def _class_dict_init(classes):
@@ -55,10 +57,13 @@ def load_data():
     # but because each row represents a seperate observation, it's ok
     # and we don't need to filter for them
     data = pd.read_csv(os.path.join(os.path.dirname(__file__),
-                                    'data', 'sdss.csv'))
+                                    'data', 'sdss.csv'),
+                       nrows=500)
 
-    # Get rid of columns that don't represent physical data or something
-    # directly derived from it
+    # Get rid of features that don't represent physical data or
+    # something directly derived from it (i.e., not a fit).
+    # Commented features are currently considered as useful for
+    # classification
     data = data.drop(labels=[
                              'specObjID',
 #                             'mjd',
@@ -106,7 +111,6 @@ def load_data():
                              'obj',
 #                             'mode',
 #                             'nChild',
-                             'type',
 #                             'flags',
 #                             'psfMag_u',
 #                             'psfMag_g',
@@ -186,47 +190,11 @@ def load_data():
     return data
 
 
-def plot(X, y, n_dim=2):
-    """Plots data projections with classes.
-
-    Plots the projection of `n_dim` classes into each plane.
-
-    """
-    # plot the classes/colors
-    fig1, ax1 = plt.subplots(n_dim, n_dim, sharex=True, sharey=True)
-    fig1.suptitle('Corner Plot: First {0:.0f} dimensions'.format(n_dim))
-    fig1.set_size_inches(4 * (n_dim - 1), 4 * (n_dim - 1))
-
-    ax1[0, 0].set_xticklabels([])
-    ax1[0, 0].set_yticklabels([])
-
-    for i in range(n_dim - 1):
-        for j in range(n_dim - 1):
-            if j > i:
-                ax1[i, j].axis('off')
-
-            else:
-                ax1[i, j].scatter(data[j], data[i + 1])
-
-            if j == 0:
-                ax1[i, j].set_ylabel("$p_{0:.0f}$".format(i + 1))
-
-            if i == n_dim - 2:
-                ax1[i, j].set_xlabel("$p_{0:.0f}$".format(j))
-
-    fig1.subplots_adjust(hspace=0, wspace=0)
-
-    recs = []
-    for i in range(0, len(ckeys)):
-        recs.append(mpatches.Circle((0, 0), radius=50, fc=cdict[ckeys[i]]))
-
-    ax1[0, n_dim - 1].legend(recs, ckeys, loc="upper right", ncol=2)
-
-
-def grid_search_optimizer(data, clf, params, components=None, discr=None):
+def grid_search_optimizer(data, clf, params, components=None, lda=False):
     X_train, X_test, y_train, y_test = data
 
-    if components is not None:
+    if components != 'None':
+        components = components.astype(float) / 100.
         if components < 1:
             pca = PCA(n_components=components)
             pca.fit(X_train)
@@ -240,80 +208,63 @@ def grid_search_optimizer(data, clf, params, components=None, discr=None):
             X_train = pca.transform(X_train)
             X_test = pca.transform(X_test)
 
-    if discr is not None:
-        discr.fit(X_train, y_train)
+    if lda:
+        discr = LDA().fit(X_train, y_train)
 
         X_train = discr.transform(X_train)
         X_test = discr.transform(X_test)
 
-    if isinstance(clf, SVC):
-        scaler = preprocessing.StandardScaler().fit(X_train)
-        X_train = scaler.transform(X_train)
-        X_test = scaler.transform(X_test)
+    scaler = preprocessing.StandardScaler().fit(X_train)
+    X_train = scaler.transform(X_train)
+    X_test = scaler.transform(X_test)
 
-    clf_cv = GridSearchCV(clf, params, cv=10, n_jobs=-1)
+    clf_cv = GridSearchCV(clf, params, cv=5, n_jobs=-1)
     clf_cv.fit(X_train, y_train)
 
     err = 1 - clf_cv.score(X_test, y_test)
-
     return err, clf_cv.best_params_
 
 
 def analysis(data, tests):
-    results = pd.DataFrame(columns=['clf', 'err', 'pca',
-                                    'lda', 'params'])
+    # string None b/c pandas indexing. it feels weird tbh
+    pca_vals = np.concatenate((['None'],
+                               (100 * np.arange(.95, 1.0, .01)).astype(int)))
+    lda = [True, False]
 
-    pca_vals = np.concatenate(([None], np.arange(.95, 1.0, .01)))
-    discriminants = [None, LDA()]
+#    results = pd.DataFrame(columns=['clf', 'err', 'pca',
+#                                    'lda', 'params'])
+    ind = pd.MultiIndex.from_product([pca_vals, lda, ['err', 'params']],
+                                     names=['pca', 'lda', 'results'])
+    results = pd.DataFrame(index=ind, columns=tests.columns)
 
-    n_tests = len(pca_vals) * len(discriminants) * len(tests)
+    n_tests = len(pca_vals) * len(lda) * len(tests.columns)
     with tqdm(total=n_tests, file=sys.stdout) as pbar:
-        for clf, label, params in tests:
-            for discriminant in discriminants:
-                lda = isinstance(discriminant, LDA)
-
-#                # skip lda with lda reduction, since thats redundant
-#                if isinstance(clf, LDA) and lda:
-#                    continue
-
+        for test in tests:
+            clf = tests[test]['obj']
+            params = tests[test]['grid']
+            for lda_bool in lda:
                 for pca in pca_vals:  # variance retained
-                    if pca is not None:
-                        pbar.set_description("clf: {0}, "
-                                             "lda: {1}, "
-                                             "pca: {2:.2f}".format(label,
-                                                                   lda,
-                                                                   pca))
-                        pca = round(pca, 2)
-                    else:
-                        pbar.set_description("clf: {0}, "
-                                             "lda: {1}, "
-                                             "pca: None".format(label,
-                                                                lda))
+                    pbar.set_description("clf: {0}, "
+                                         "lda: {1}, "
+                                         "pca: {2}".format(test,
+                                                           lda_bool, pca))
 
                     err, par = grid_search_optimizer(data, clf, params,
                                                      components=pca,
-                                                     discr=discriminant)
+                                                     lda=lda_bool)
 
-                    if pca is not None:
-                        results = results.append(ignore_index=True,
-                                                 other={'clf': label,
-                                                        'err': round(err, 4),
-                                                        'pca': pca,
-                                                        'lda': lda,
-                                                        'params': par})
-                    else:
-                        results = results.append(ignore_index=True,
-                                                 other={'clf': label,
-                                                        'err': round(err, 4),
-                                                        'pca': "None",
-                                                        'lda': lda,
-                                                        'params': par})
+                    results[test][pca, lda_bool, 'err'] = round(err, 4)
+                    results[test][pca, lda_bool, 'params'] = par
+
                     pbar.update()
 
     results.to_csv(os.path.join(os.path.dirname(__file__),
                                 'out', 'results.csv'))
-
     return results
+
+
+def plot_results(results):
+    pass
 
 
 def main():
@@ -334,38 +285,35 @@ def main():
     # split data for training/testing
     class_data = train_test_split(X, y, test_size=.25)
 
-    clfs = [
-            (KNeighborsClassifier(),
-             "knn",
-             {'n_neighbors': np.arange(25) + 1,
-              'weights': ['uniform', 'distance']}),
+    # init the data frame
+    clfs = pd.DataFrame(index=['obj', 'grid'])
 
-            (LDA(),
-             "lda",
-             {}),
+    # then add tests
+    clfs['knn'] = pd.Series([KNeighborsClassifier(),
+                            {'n_neighbors': np.arange(25) + 1,
+                             'weights': ['uniform', 'distance']}],
+                            index=clfs.index)
+    clfs['lda'] = pd.Series([LDA(), {}], index=clfs.index)
+    clfs['qda'] = pd.Series([QDA(), {}], index=clfs.index)
+    clfs['svm'] = pd.Series([SVC(),
+                            {'C': 2. ** np.arange(-6, 5),
+                             'gamma': 2. ** np.arange(-6, 5),
+                             'decision_function_shape': ['ovo', 'ovr']}],
+                            index=clfs.index)
+    sample_range = (2. ** np.arange(1, 11)).astype(int)
+    clfs['random forest'] = pd.Series([RandomForestClassifier(),
+                                       {'n_estimators': np.arange(1, 11) * 10,
+                                        'min_samples_split': sample_range}],
+                                      index=clfs.index)
+    clfs['AdaBoost'] = pd.Series([AdaBoostClassifier(),
+                                  {'n_estimators': np.arange(1, 11) * 10,
+                                   'learning_rate': 10. ** np.arange(-4, 1)}],
+                                 index=clfs.index)
 
-            (QDA(),
-             "qda",
-             {}),
-
-            (SVC(),
-             "svm",
-             {'C': 2. ** np.arange(-6, 5),
-              'gamma': 2. ** np.arange(-6, 5),
-              'decision_function_shape': ['ovo', 'ovr']}),
-
-            (RandomForestClassifier(),
-             "random forest",
-             {'n_estimators': np.arange(1, 11) * 10,
-              'min_samples_split': (2. ** np.arange(1, 11)).astype(int)}),
-
-            (AdaBoostClassifier(),
-             "AdaBoost",
-             {'n_estimators': np.arange(1, 11) * 10,
-              'learning_rate': 10. ** np.arange(-4, 1)})
-            ]
-
+    # analyses
     results = analysis(class_data, clfs)
+#    with open('tables.txt') as f:
+#        f.write(results)
     return results
 
 
