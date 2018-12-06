@@ -258,9 +258,25 @@ def analysis(data, tests):
 
                     pbar.update()
 
+    errs = results.loc[(results.index.get_level_values('results')
+                        == 'err')].reset_index(level=[2], drop=True)
+
+    pbest = results.loc[(results.index.get_level_values('results')
+                        == 'err')].reset_index(level=[2], drop=True)
+
     results.to_csv(os.path.join(os.path.dirname(__file__),
-                                'out', 'results.csv'))
-    return results
+                                'out', 'results.csv'),
+                   index_label=results.index.names)
+
+    errs.to_csv(os.path.join(os.path.dirname(__file__),
+                             'out', 'errs.csv'),
+                index_label=results.index.names)
+
+    pbest.to_csv(os.path.join(os.path.dirname(__file__),
+                              'out', 'pbest.csv'),
+                 index_label=results.index.names)
+
+    return results, errs
 
 
 def plot_results(results):
@@ -327,4 +343,4 @@ if __name__ == '__main__':
     directory = os.path.join(os.path.dirname(__file__), 'out')
     if not os.path.exists(directory):
         os.makedirs(directory)
-    results = main()
+    results, errs = main()
