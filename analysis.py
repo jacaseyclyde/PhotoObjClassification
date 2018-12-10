@@ -55,7 +55,7 @@ def _subclass_dict_init(subclasses):
     SUBCLASS_DICT = dict(zip(subclasses, values))
 
 
-def load_data():
+def load_data(pos=False, op=False):
     # There is the possibility of this containing duplicate objects,
     # but because each row represents a seperate observation, it's ok
     # and we don't need to filter for them
@@ -66,127 +66,29 @@ def load_data():
     # something directly derived from it (i.e., not a fit).
     # Commented features are currently considered as useful for
     # classification
-    data = data.drop(labels=[
-                             'specObjID',
-                             'mjd', # Date
-                             'plate', # ID
-                             'tile', # ID
-                             'fiberID', # ID
-                             'z',
-                             'zErr',
-                             'zWarning',
-#                             'ra', #
-#                             'dec', #
-#                             'cx', #
-#                             'cy', #
-#                             'cz', #
-                             'htmID',
-#                             'sciencePrimary', #
-#                             'legacyPrimary', #
-#                             'seguePrimary', #
-#                             'segue1Primary', #
-#                             'segue2Primary', #
-#                             'bossPrimary', #
-#                             'sdssPrimary', #
-                             'survey',
-                             'programname',
-                             'legacy_target1',
-                             'legacy_target2',
-#                             'special_target1', #
-#                             'special_target2', #
-#                             'segue1_target1', #
-#                             'segue1_target2', #
-#                             'segue2_target1', #
-#                             'segue2_target2', #
-#                             'boss_target1', #
-#                             'ancillary_target1', #
-#                             'ancillary_target2', #
-                             'plateID',  # ID
-                             'sourceType',  # classification
-                             'targetObjID',  # ID
-                             'objID',  # ID
-                             'skyVersion',  # ID
-                             'run',  # ID
-                             'rerun',  # ID
-                             'camcol',  # ID
-                             'field',  # ID
-                             'obj',  # ID
-#                             'mode',  #
-#                             'nChild',  #
-                             'flags',  # flags
-#                             'psfMag_u',
-#                             'psfMag_g',
-#                             'psfMag_r',
-#                             'psfMag_i',
-#                             'psfMag_z',
-#                             'psfMagErr_u',
-#                             'psfMagErr_g',
-#                             'psfMagErr_r',
-#                             'psfMagErr_i',
-#                             'psfMagErr_z',
-#                             'fiberMag_u',
-#                             'fiberMag_g',
-#                             'fiberMag_r',
-#                             'fiberMag_i',
-#                             'fiberMag_z',
-#                             'fiberMagErr_u',
-#                             'fiberMagErr_g',
-#                             'fiberMagErr_r',
-#                             'fiberMagErr_i',
-#                             'fiberMagErr_z',
-#                             'petroMag_u',
-#                             'petroMag_g',
-#                             'petroMag_r',
-#                             'petroMag_i',
-#                             'petroMag_z',
-#                             'petroMagErr_u',
-#                             'petroMagErr_g',
-#                             'petroMagErr_r',
-#                             'petroMagErr_i',
-#                             'petroMagErr_z',
-                             'modelMag_u',
-                             'modelMag_g',
-                             'modelMag_r',
-                             'modelMag_i',
-                             'modelMag_z',
-                             'modelMagErr_u',
-                             'modelMagErr_g',
-                             'modelMagErr_r',
-                             'modelMagErr_i',
-                             'modelMagErr_z',
-                             'cModelMag_u',
-                             'cModelMag_g',
-                             'cModelMag_r',
-                             'cModelMag_i',
-                             'cModelMag_z',
-                             'cModelMagErr_u',
-                             'cModelMagErr_g',
-                             'cModelMagErr_r',
-                             'cModelMagErr_i',
-                             'cModelMagErr_z',
-                             'mRrCc_r',
-                             'mRrCcErr_r',
-#                             'score',  # quality #
-#                             'resolveStatus',  # flag #
-#                             'calibStatus_u',  # magnitude
-#                             'calibStatus_g',  # magnitude
-#                             'calibStatus_r',  # magnitude
-#                             'calibStatus_i',  # magnitude
-#                             'calibStatus_z',  # magnitude
-#                             'photoRa',  # position
-#                             'photoDec',  # position
-#                             'extinction_u',
-#                             'extinction_g',
-#                             'extinction_r',
-#                             'extinction_i',
-#                             'extinction_z',
-                             'fieldID',  # ID
-                             'dered_u',
-                             'dered_g',
-                             'dered_r',
-                             'dered_i',
-                             'dered_z'
-                             ],
+    drop = ['specObjID', 'mjd', 'plate', 'tile', 'fiberID', 'z', 'zErr',
+            'zWarning', 'htmID', 'survey', 'programname', 'legacy_target1',
+            'legacy_target2', 'plateID', 'sourceType', 'targetObjID', 'objID',
+            'skyVersion', 'run', 'rerun', 'camcol', 'field', 'obj', 'flags',
+            'modelMag_u', 'modelMag_g', 'modelMag_r', 'modelMag_i',
+            'modelMag_z', 'modelMagErr_u', 'modelMagErr_g', 'modelMagErr_r',
+            'modelMagErr_i', 'modelMagErr_z', 'cModelMag_u', 'cModelMag_g',
+            'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 'cModelMagErr_u',
+            'cModelMagErr_g', 'cModelMagErr_r', 'cModelMagErr_i',
+            'cModelMagErr_z', 'mRrCc_r', 'mRrCcErr_r', 'fieldID', 'dered_u',
+            'dered_g', 'dered_r', 'dered_i', 'dered_z']
+    if not pos:
+        drop += ['ra', 'dec', 'cx', 'cy', 'cz', 'photoRa', 'photoDec']
+
+    if not op:
+        drop += ['sciencePrimary', 'legacyPrimary',
+                 'seguePrimary', 'segue1Primary', 'segue2Primary',
+                 'bossPrimary', 'sdssPrimary', 'special_target1',
+                 'special_target2', 'segue1_target1', 'segue1_target2',
+                 'segue2_target1', 'segue2_target2', 'boss_target1',
+                 'ancillary_target1', 'ancillary_target2', 'mode', 'nChild',
+                 'score', 'resolveStatus']
+    data = data.drop(labels=drop,
                      axis=1)
 
     return data
@@ -217,7 +119,7 @@ def grid_search_optimizer(data, clf, params, var=None, cv=5,
     clf_cv.fit(X_train, y_train)
 
     err = 1 - clf_cv.score(X_test, y_test)
-    return err, clf_cv.best_params_
+    return err, clf_cv.best_params_, clf_cv.cv_results_
 
 
 def count_experiments(clfs):
@@ -239,18 +141,18 @@ def custom_score(y, y_pred, pbar=None):
     return np.sum(np.diagonal(matr)) / np.sum(matr)
 
 
-def analysis(data, tests):
+def analysis(data, tests, prefix=None):
     n_exps = count_experiments(tests)
     cv = 5
 
     var_max = 1.
     var_min = .75
     variances = np.linspace(var_min, var_max,
-                            num=26)
+                            num=6)
     variances = np.around(variances, 2)
 
     ind = pd.MultiIndex.from_product([(100 * variances).astype(int),
-                                      ['err', 'params']],
+                                      ['err', 'best_params', 'all_params']],
                                      names=['pca', 'results'])
     results = pd.DataFrame(index=ind, columns=tests.columns)
 
@@ -266,12 +168,14 @@ def analysis(data, tests):
                                      "pca: {1}".format(test,
                                                        var))
 
-                err, par = grid_search_optimizer(data, clf, params,
-                                                 var=var,
-                                                 scorer=None)
+                err, par_best, par_all = grid_search_optimizer(data, clf,
+                                                               params,
+                                                               var=var,
+                                                               scorer=None)
 
                 results[test][int(100 * var), 'err'] = round(err, 4)
-                results[test][int(100 * var), 'params'] = par
+                results[test][int(100 * var), 'best_params'] = par_best
+                results[test][int(100 * var), 'all_params'] = par_all
 
                 pbar.update(cv * n_exps[i])
 
@@ -279,24 +183,31 @@ def analysis(data, tests):
                         == 'err')].reset_index(level=1, drop=True)
 
     pbest = results.loc[(results.index.get_level_values('results')
-                        == 'params')].reset_index(level=1, drop=True)
+                        == 'best_params')].reset_index(level=1, drop=True)
+
+    pall = results.loc[(results.index.get_level_values('results')
+                        == 'all_params')].reset_index(level=1, drop=True)
 
     results.to_csv(os.path.join(os.path.dirname(__file__),
-                                'out', 'results.csv'),
+                                'out', '{0}_results.csv'.format(prefix)),
                    index_label=results.index.names)
 
     errs.to_csv(os.path.join(os.path.dirname(__file__),
-                             'out', 'errs.csv'),
+                             'out', '{0}_errs.csv'.format(prefix)),
                 index_label=results.index.names)
 
     pbest.to_csv(os.path.join(os.path.dirname(__file__),
-                              'out', 'pbest.csv'),
+                              'out', '{0}_pbest.csv'.format(prefix)),
                  index_label=results.index.names)
 
-    return results, errs, pbest
+    pall.to_csv(os.path.join(os.path.dirname(__file__),
+                             'out', '{0}_pall.csv'.format(prefix)),
+                index_label=results.index.names)
+
+    return results, errs, pbest, pall
 
 
-def plot_errors(errs):
+def plot_errors(errs, prefix=None):
     indicies = errs.index.values.astype(float)
 
     plt.figure()
@@ -313,84 +224,97 @@ def plot_errors(errs):
     lgd = plt.legend(bbox_to_anchor=(1, 1), loc="upper left")
     plt.title("Error Rates vs. PCA Variance")
 
-    save_path = os.path.join(os.path.dirname(__file__), 'out/errors.pdf')
+    save_path = os.path.join(os.path.dirname(__file__),
+                             'out/{0}_errors.pdf'.format(prefix))
     plt.savefig(save_path, bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.show()
 
 
 def main():
-    data = load_data()
+    prefixes = ["mag", "mag_op", "mag_pos", "mag_op_pos"]
+    for prefix in prefixes:
+        pos = prefix == "mag_pos" or prefix == "mag_op_pos"
+        op = prefix == "mag_op" or prefix == "mag_op_pos"
+        data = load_data(pos=pos, op=op)
 
-    # Our two types of labels
-    classes = data.pop('class')
-    subclasses = data.pop('subClass')
+        # Our two types of labels
+        classes = data.pop('class')
+        subclasses = data.pop('subClass')
 
-    # initialize dicts relating integer class values to their human
-    # friendly string values
-    _class_dict_init(classes)
-    _subclass_dict_init(subclasses)
+        # initialize dicts relating integer class values to their human
+        # friendly string values
+        _class_dict_init(classes)
+        _subclass_dict_init(subclasses)
 
-    X = data.values
-    y = np.vectorize(CLASS_DICT.get)(classes)
+        # init the data frame
+        clfs = pd.DataFrame(index=['obj', 'grid'])
 
-    # split data for training/testing
-    class_data = train_test_split(X, y, test_size=.25)
+        # then add tests
+        clfs['kNN'] = pd.Series([KNeighborsClassifier(),
+                                {'n_neighbors': np.arange(25) + 1,
+                                 'weights': ['uniform', 'distance']}],
+                                index=clfs.index)
+        clfs['LDA'] = pd.Series([LDA(), {}], index=clfs.index)
+        # QDA Performs extremely poorly without LDA, leaving commented for now
+    #    clfs['QDA'] = pd.Series([QDA(), {}], index=clfs.index)
+        clfs['SVM'] = pd.Series([SVC(),
+                                {'C': 2. ** np.arange(-6, 5),
+                                 'gamma': 2. ** np.arange(-6, 5),
+                                 'decision_function_shape': ['ovo', 'ovr']
+                                 }],
+                                index=clfs.index)
+        sample_range = (2. ** np.arange(1, 11)).astype(int)
+        clfs['Random Forest'] = pd.Series([RandomForestClassifier(),
+                                           {'n_estimators': np.arange(1, 11) * 10,
+                                            'min_samples_split': sample_range
+                                            }],
+                                          index=clfs.index)
+        clfs['AdaBoost'] = pd.Series([AdaBoostClassifier(),
+                                      {'n_estimators': np.arange(1, 11) * 10,
+                                       'learning_rate': 10. ** np.arange(-4, 1)
+                                       }],
+                                     index=clfs.index)
+        clfs['MLP'] = pd.Series([MLPClassifier(),
+                                 {'hidden_layer_sizes': [(), (2 ** 3, ),
+                                                         (2 ** 4, ), (2 ** 5, ),
+                                                         (2 ** 6, ),
+                                                         (2 ** 3, 2 ** 3),
+                                                         (2 ** 4, 2 ** 3),
+                                                         (2 ** 5, 2 ** 3),
+                                                         (2 ** 6, 2 ** 3),
+                                                         (2 ** 4, 2 ** 4),
+                                                         (2 ** 5, 2 ** 4),
+                                                         (2 ** 6, 2 ** 4),
+                                                         (2 ** 5, 2 ** 5),
+                                                         (2 ** 6, 2 ** 5),
+                                                         (2 ** 6, 2 ** 6)],
+                                  'activation': ['identity', 'logistic',
+                                                 'tanh', 'relu'],
+                                  'learning_rate_init':
+                                      10. ** np.arange(-4, 2)
+                                  }],
+                                index=clfs.index)
 
-    # init the data frame
-    clfs = pd.DataFrame(index=['obj', 'grid'])
+        # analyses
+        # classes
+        X = data.values
+        y_cls = np.vectorize(CLASS_DICT.get)(classes)
 
-    # then add tests
-    clfs['kNN'] = pd.Series([KNeighborsClassifier(),
-                            {'n_neighbors': np.arange(25) + 1,
-                             'weights': ['uniform', 'distance']}],
-                            index=clfs.index)
-    clfs['LDA'] = pd.Series([LDA(), {}], index=clfs.index)
-    # QDA Performs extremely poorly without LDA, leaving commented for now
-#    clfs['QDA'] = pd.Series([QDA(), {}], index=clfs.index)
-    clfs['SVM'] = pd.Series([SVC(),
-                            {'C': 2. ** np.arange(-6, 5),
-                             'gamma': 2. ** np.arange(-6, 5),
-                             'decision_function_shape': ['ovo', 'ovr']}],
-                            index=clfs.index)
-    sample_range = (2. ** np.arange(1, 11)).astype(int)
-    clfs['Random Forest'] = pd.Series([RandomForestClassifier(),
-                                       {'n_estimators': np.arange(1, 11) * 10,
-                                        'min_samples_split': sample_range}],
-                                      index=clfs.index)
-    clfs['AdaBoost'] = pd.Series([AdaBoostClassifier(),
-                                  {'n_estimators': np.arange(1, 11) * 10,
-                                   'learning_rate': 10. ** np.arange(-4, 1)}],
-                                 index=clfs.index)
-    clfs['MLP'] = pd.Series([MLPClassifier(),
-                             {'hidden_layer_sizes': [(), (2 ** 3, ),
-                                                     (2 ** 4, ), (2 ** 5, ),
-                                                     (2 ** 6, ),
-                                                     (2 ** 3, 2 ** 3),
-                                                     (2 ** 3, 2 ** 4),
-                                                     (2 ** 3, 2 ** 5),
-                                                     (2 ** 3, 2 ** 6),
-                                                     (2 ** 4, 2 ** 4),
-                                                     (2 ** 4, 2 ** 5),
-                                                     (2 ** 4, 2 ** 6),
-                                                     (2 ** 5, 2 ** 5),
-                                                     (2 ** 5, 2 ** 6),
-                                                     (2 ** 5, 2 ** 6)],
-                              'activation': ['identity', 'logistic',
-                                             'tanh', 'relu'],
-                              'learning_rate_init':
-                                  10. ** np.arange(-4, 2)}],
-                            index=clfs.index)
+        # split data for training/testing
+        class_data = train_test_split(X, y_cls, test_size=500, train_size=1500,
+                                      random_state=1234567890)
 
-    # analyses
-    results, errs, pbest = analysis(class_data, clfs)
-    save_path = os.path.join(os.path.dirname(__file__), 'out/results.tex')
-    results.to_latex(save_path)
+        cls_results, cls_errs, cls_pbest, cls_pall = analysis(class_data, clfs,
+                                                              prefix=prefix)
+        save_path = os.path.join(os.path.dirname(__file__),
+                                 'out/{0}_results.tex'.format(prefix))
+        cls_results.to_latex(save_path)
 
-    plot_errors(errs)
-    print(np.min(errs.values))
-    print(np.min(errs))
+        plot_errors(cls_errs, prefix=prefix)
+        print(np.min(cls_errs.values))
+        print(np.min(cls_errs))
 
-    return results, errs, pbest, clfs
+    return class_data
 
 
 if __name__ == '__main__':
@@ -403,4 +327,4 @@ if __name__ == '__main__':
     directory = os.path.join(os.path.dirname(__file__), 'out')
     if not os.path.exists(directory):
         os.makedirs(directory)
-    results, errs, pbest, clfs = main()
+    class_data = main()
