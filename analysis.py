@@ -76,7 +76,7 @@ def load_data(pos=False, op=False):
             'cModelMag_r', 'cModelMag_i', 'cModelMag_z', 'cModelMagErr_u',
             'cModelMagErr_g', 'cModelMagErr_r', 'cModelMagErr_i',
             'cModelMagErr_z', 'mRrCc_r', 'mRrCcErr_r', 'fieldID', 'dered_u',
-            'dered_g', 'dered_r', 'dered_i', 'dered_z']
+            'dered_g', 'dered_r', 'dered_i', 'dered_z', 'type']
     if not pos:
         drop += ['ra', 'dec', 'cx', 'cy', 'cz', 'photoRa', 'photoDec']
 
@@ -98,7 +98,7 @@ def grid_search_optimizer(data, clf, params, var=None, cv=5,
                           scorer=None):
     X_train, X_test, y_train, y_test = data
 
-    if var < 1:
+    if var != 1:
         pca = PCA(n_components=var)
         pca.fit(X_train)
 
@@ -134,6 +134,7 @@ def count_experiments(clfs):
 
 
 def custom_score(y, y_pred, pbar=None):
+    # was gonna try to do something with this as far as extracting more data
     matr = confusion_matrix(y, y_pred)
     if pbar is not None:
         pbar.update(1)
@@ -145,13 +146,9 @@ def analysis(data, tests, prefix=None):
     n_exps = count_experiments(tests)
     cv = 5
 
-    var_max = 1.
-    var_min = .75
-    variances = np.linspace(var_min, var_max,
-                            num=6)
-    variances = np.around(variances, 2)
+    variances = len(data[0][0]) - np.arange(11)
 
-    ind = pd.MultiIndex.from_product([(100 * variances).astype(int),
+    ind = pd.MultiIndex.from_product([variances,
                                       ['err', 'best_params', 'all_params']],
                                      names=['pca', 'results'])
     results = pd.DataFrame(index=ind, columns=tests.columns)
@@ -170,12 +167,11 @@ def analysis(data, tests, prefix=None):
 
                 err, par_best, par_all = grid_search_optimizer(data, clf,
                                                                params,
-                                                               var=var,
-                                                               scorer=None)
+                                                               var=var)
 
-                results[test][int(100 * var), 'err'] = round(err, 4)
-                results[test][int(100 * var), 'best_params'] = par_best
-                results[test][int(100 * var), 'all_params'] = par_all
+                results[test][var, 'err'] = round(err, 4)
+                results[test][var, 'best_params'] = par_best
+                results[test][var, 'all_params'] = par_all
 
                 pbar.update(cv * n_exps[i])
 
@@ -211,7 +207,7 @@ def plot_errors(errs, prefix=None):
     indicies = errs.index.values.astype(float)
 
     plt.figure()
-    marker = itertools.cycle(('o', '^', '+'))
+    marker = itertools.cycle(('o', '^', '+', 's'))
 
     for clf in errs:
         plt.plot(indicies, errs[clf].values,
@@ -231,10 +227,11 @@ def plot_errors(errs, prefix=None):
 
 
 def main():
-    prefixes = ["mag", "mag_op", "mag_pos", "mag_op_pos"]
+    prefixes = ["fix_int_mag", "fix_int_mag_op",
+                "fix_int_mag_pos", "fix_int_mag_op_pos"]
     for prefix in prefixes:
-        pos = prefix == "mag_pos" or prefix == "mag_op_pos"
-        op = prefix == "mag_op" or prefix == "mag_op_pos"
+        pos = prefix == "fix_int_mag_pos" or prefix == "fix_int_mag_op_pos"
+        op = prefix == "fix_int_mag_op" or prefix == "fix_int_mag_op_pos"
         data = load_data(pos=pos, op=op)
 
         # Our two types of labels
@@ -255,8 +252,6 @@ def main():
                                  'weights': ['uniform', 'distance']}],
                                 index=clfs.index)
         clfs['LDA'] = pd.Series([LDA(), {}], index=clfs.index)
-        # QDA Performs extremely poorly without LDA, leaving commented for now
-    #    clfs['QDA'] = pd.Series([QDA(), {}], index=clfs.index)
         clfs['SVM'] = pd.Series([SVC(),
                                 {'C': 2. ** np.arange(-6, 5),
                                  'gamma': 2. ** np.arange(-6, 5),
@@ -265,7 +260,8 @@ def main():
                                 index=clfs.index)
         sample_range = (2. ** np.arange(1, 11)).astype(int)
         clfs['Random Forest'] = pd.Series([RandomForestClassifier(),
-                                           {'n_estimators': np.arange(1, 11) * 10,
+                                           {'n_estimators':
+                                               np.arange(1, 11) * 10,
                                             'min_samples_split': sample_range
                                             }],
                                           index=clfs.index)
@@ -275,8 +271,10 @@ def main():
                                        }],
                                      index=clfs.index)
         clfs['MLP'] = pd.Series([MLPClassifier(),
-                                 {'hidden_layer_sizes': [(), (2 ** 3, ),
-                                                         (2 ** 4, ), (2 ** 5, ),
+                                 {'hidden_layer_sizes': [(),
+                                                         (2 ** 3, ),
+                                                         (2 ** 4, ),
+                                                         (2 ** 5, ),
                                                          (2 ** 6, ),
                                                          (2 ** 3, 2 ** 3),
                                                          (2 ** 4, 2 ** 3),
@@ -301,7 +299,7 @@ def main():
         y_cls = np.vectorize(CLASS_DICT.get)(classes)
 
         # split data for training/testing
-        class_data = train_test_split(X, y_cls, test_size=500, train_size=1500,
+        class_data = train_test_split(X, y_cls, test_size=250, train_size=750,
                                       random_state=1234567890)
 
         cls_results, cls_errs, cls_pbest, cls_pall = analysis(class_data, clfs,
@@ -309,6 +307,14 @@ def main():
         save_path = os.path.join(os.path.dirname(__file__),
                                  'out/{0}_results.tex'.format(prefix))
         cls_results.to_latex(save_path)
+
+        save_path = os.path.join(os.path.dirname(__file__),
+                                 'out/{0}_errs.tex'.format(prefix))
+        cls_errs.to_latex(save_path)
+
+        save_path = os.path.join(os.path.dirname(__file__),
+                                 'out/{0}_pbest.tex'.format(prefix))
+        cls_pbest.to_latex(save_path)
 
         plot_errors(cls_errs, prefix=prefix)
         print(np.min(cls_errs.values))
